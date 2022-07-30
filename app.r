@@ -1,6 +1,7 @@
 library(DT)
 library(dplyr)
 library(tidyr)
+library(purrr)
 
 
 data_dir <- file.path("data")
@@ -21,47 +22,37 @@ combined_dictionary <- readRDS(file.path(data_dir, "dictionary.rds")) |>
   mutate_if(is.factor, as.character)
 
 
-# dictionaries <- dictionary_keys |>
-#   (\(x) setNames(x, x))() |>
-#   sapply(
-#     \(x) readRDS(file.path(data_dir, sprintf("%s-dictionary.rds", x))) |> select(-variables),
-#     simplify = FALSE
-#   )
+filter_columns <- c("questionaire", "section", "subsection")
+
+
+column_values <- filter_columns |>
+  add_names() |>
+  map(function(col) {
+    combined_dictionary |>
+      pull(!!sym(col)) |>
+      unique() |>
+      remove_na() |>
+      add_names()
+    })
+
+
+column_value_names <- column_values
+column_value_names$questionaire <- dictionary_keys
 
 
 ui <- fluidPage(
   titlePanel("SPHS dictionary explorer"),
   sidebarLayout(
     sidebarPanel(
-      selectizeInput(
-        "dictionary-select",
-        label = "Questionaire",
-        choices = dictionary_keys,
-        multiple = TRUE,
-        options = list(plugins = list("remove_button"))
-      ),
-      selectizeInput(
-        "section-select",
-        label = "Section",
-        choices = combined_dictionary |>
-          pull(section) |>
-          as.character() |>
-          unique() |>
-          na.exclude(),
-        multiple = TRUE,
-        options = list(plugins = list("remove_button"))
-      ),
-      selectizeInput(
-        "subsection-select",
-        label = "Subsection",
-        choices = combined_dictionary |>
-          pull(subsection) |>
-          as.character() |>
-          unique() |>
-          na.exclude(),
-        multiple = TRUE,
-        options = list(plugins = list("remove_button"))
-      ),
+      filter_columns |> map(function(col) {
+        selectizeInput(
+          sprintf("%s-select", col),
+          label = tools::toTitleCase(col),
+          choices = column_value_names[[col]],
+          multiple = TRUE,
+          options = list(plugins = list("remove_button"))
+        )
+      }),
       downloadButton("download", "Download")
     ),
     mainPanel(
@@ -78,27 +69,13 @@ server <- function(input, output, session) {
     selected = character()
   )
 
-  observe({
-    includes <- input$`dictionary-select`
+  filter_columns |> walk(function(col) {
+    observe({
+      includes <- input[[sprintf("%s-select", col)]]
 
-    isolate({
-      values$filters$questionaire <- includes
-    })
-  })
-
-  observe({
-    includes <- input$`section-select`
-
-    isolate({
-      values$filters$section <- includes
-    })
-  })
-
-  observe({
-    includes <- input$`subsection-select`
-
-    isolate({
-      values$filters$subsection <- includes
+      isolate({
+        values$filters[[col]] <- includes
+      })
     })
   })
 
@@ -114,6 +91,37 @@ server <- function(input, output, session) {
     isolate({
       replaceData(proxy, df)
       selectRows(proxy, which(df$id %in% values$selected))
+    })
+  })
+
+  filter_columns |> walk(function(col) {
+    observe({
+      df <- dictionary()
+
+      isolate({
+        col_sym <- sym(col)
+
+        name_df <- data.frame(x = column_value_names[[col]])
+        names(name_df) <- col
+
+        choices_df <- df |>
+          group_by(!!sym(col)) |>
+          summarise(n = n()) |>
+          right_join(name_df, by = col) |>
+          mutate(n = ifelse(is.na(n), 0L, n)) |>
+          mutate(n = sprintf("%s (%d)", !!col_sym, n))
+
+        choices <- choices_df[[col]]
+        names(choices) <- choices_df$n
+
+        updateSelectizeInput(
+          session,
+          sprintf("%s-select", col),
+          label = tools::toTitleCase(col),
+          choices = choices,
+          selected = input[[sprintf("%s-select", col)]]
+        )
+      })
     })
   })
 
@@ -133,7 +141,7 @@ server <- function(input, output, session) {
     })
   })
 
-  # output$out <- renderPrint(names(dictionaries))
+  # output$out <- renderPrint(values$filters)
 
   output$download <- downloadHandler(
     filename = "variables.csv",
