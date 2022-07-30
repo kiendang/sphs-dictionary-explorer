@@ -73,45 +73,37 @@ ui <- fluidPage(
 
 
 server <- function(input, output, session) {
-  questionaire_dictionary <- reactive({
-    df <- combined_dictionary
+  values <- reactiveValues(
+    filters = list(),
+    selected = character()
+  )
 
-    if (length(input$`dictionary-select`)) {
-      df |>
-        filter(questionaire %in% input$`dictionary-select`)
-    } else df
-  })
-
-  section_dictionary <- reactive({
-    sections <- input$`section-select`
-    input$`dictionary-select`
+  observe({
+    includes <- input$`dictionary-select`
 
     isolate({
-      df <- questionaire_dictionary()
-
-      if (length(input$`section-select`)) {
-        df |>
-          filter(section %in% sections)
-      } else df
+      values$filters$questionaire <- includes
     })
   })
 
-  subsection_dictionary <- reactive({
-    subsections <- input$`subsection-select`
-    input$`section-select`
+  observe({
+    includes <- input$`section-select`
 
     isolate({
-      df <- section_dictionary()
+      values$filters$section <- includes
+    })
+  })
 
-      if (length(input$`subsection-select`)) {
-        df |>
-          filter(subsection %in% subsections)
-      } else df
+  observe({
+    includes <- input$`subsection-select`
+
+    isolate({
+      values$filters$subsection <- includes
     })
   })
 
   dictionary <- reactive({
-    subsection_dictionary() |> select(-variables) |> rename_all(tools::toTitleCase)
+    combined_dictionary |> select(-variables) |> evaluate_filter(values$filters)
   })
 
   proxy <- dataTableProxy("dictionary")
@@ -124,10 +116,6 @@ server <- function(input, output, session) {
       selectRows(proxy, which(df$id %in% values$selected))
     })
   })
-
-  values <- reactiveValues(
-    selected = character()
-  )
 
   observe({
     clicked <- input$dictionary_row_last_clicked
@@ -168,6 +156,7 @@ server <- function(input, output, session) {
       datatable(
         df,
         filter = "none",
+        colnames = tools::toTitleCase(names(df)),
         options = list(
           columnDefs = list(
             list(targets = c(1:(ncol(df))), className = "dt-head-left"),
