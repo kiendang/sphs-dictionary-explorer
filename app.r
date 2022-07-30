@@ -1,4 +1,3 @@
-library(shiny.semantic)
 library(DT)
 library(dplyr)
 library(tidyr)
@@ -18,7 +17,8 @@ dictionary_keys <- c(
 
 
 combined_dictionary <- readRDS(file.path(data_dir, "dictionary.rds")) |>
-  mutate(id = 1:n(), .before = everything())
+  mutate(id = 1:n(), .before = everything()) |>
+  mutate_if(is.factor, as.character)
 
 
 # dictionaries <- dictionary_keys |>
@@ -29,51 +29,90 @@ combined_dictionary <- readRDS(file.path(data_dir, "dictionary.rds")) |>
 #   )
 
 
-ui <- semanticPage(
-  title = "SPHS dictionary explorer",
-  sidebar_layout(
-    sidebar_panel(
-      dropdown_input(
+ui <- fluidPage(
+  titlePanel("SPHS dictionary explorer"),
+  sidebarLayout(
+    sidebarPanel(
+      selectizeInput(
         "dictionary-select",
-        names(dictionary_keys),
-        value = first(names(dictionary_keys))
+        label = "Questionaire",
+        choices = dictionary_keys,
+        multiple = TRUE,
+        options = list(plugins = list("remove_button"))
       ),
-      button("download-button", "",
-             downloadLink("download", "Download"))
+      selectizeInput(
+        "section-select",
+        label = "Section",
+        choices = combined_dictionary |>
+          pull(section) |>
+          as.character() |>
+          unique() |>
+          na.exclude(),
+        multiple = TRUE,
+        options = list(plugins = list("remove_button"))
+      ),
+      selectizeInput(
+        "subsection-select",
+        label = "Subsection",
+        choices = combined_dictionary |>
+          pull(subsection) |>
+          as.character() |>
+          unique() |>
+          na.exclude(),
+        multiple = TRUE,
+        options = list(plugins = list("remove_button"))
+      ),
+      downloadButton("download", "Download")
     ),
-    main_panel(
-      cards(
-        class = "one",
-        card(
-          class = "blue",
-          div(
-            class = "content",
-            dataTableOutput("dictionary")
-          )
-        )
-      )
-      , cards(
-        class = "one",
-        card(
-          class = "blue",
-          div(
-            class = "content",
-            verbatimTextOutput("out")
-          )
-        )
-      )
+    mainPanel(
+      dataTableOutput("dictionary")
+      # , verbatimTextOutput("out")
     )
   )
 )
 
 
-server <- function(input, output) {
-  dictionary_key <- reactive(dictionary_keys[[input$`dictionary-select`]])
-  dictionary <- reactive(
-    combined_dictionary |>
-      filter(questionaire == dictionary_key()) |>
-      select(-variables)
-  )
+server <- function(input, output, session) {
+  questionaire_dictionary <- reactive({
+    df <- combined_dictionary
+
+    if (length(input$`dictionary-select`)) {
+      df |>
+        filter(questionaire %in% input$`dictionary-select`)
+    } else df
+  })
+
+  section_dictionary <- reactive({
+    sections <- input$`section-select`
+    input$`dictionary-select`
+
+    isolate({
+      df <- questionaire_dictionary()
+
+      if (length(input$`section-select`)) {
+        df |>
+          filter(section %in% sections)
+      } else df
+    })
+  })
+
+  subsection_dictionary <- reactive({
+    subsections <- input$`subsection-select`
+    input$`section-select`
+
+    isolate({
+      df <- section_dictionary()
+
+      if (length(input$`subsection-select`)) {
+        df |>
+          filter(subsection %in% subsections)
+      } else df
+    })
+  })
+
+  dictionary <- reactive({
+    subsection_dictionary() |> select(-variables) |> rename_all(tools::toTitleCase)
+  })
 
   proxy <- dataTableProxy("dictionary")
 
@@ -106,7 +145,7 @@ server <- function(input, output) {
     })
   })
 
-  output$out <- renderPrint(names(dictionaries))
+  # output$out <- renderPrint(names(dictionaries))
 
   output$download <- downloadHandler(
     filename = "variables.csv",
@@ -128,14 +167,15 @@ server <- function(input, output) {
 
       datatable(
         df,
-        filter = "bottom",
+        filter = "none",
         options = list(
           columnDefs = list(
-            list(targets = c(0:(ncol(df) - 1)), className = "dt-head-left")
-            # list(targets = 4, visible = FALSE)
+            list(targets = c(1:(ncol(df))), className = "dt-head-left"),
+            list(targets = 1, visible = FALSE)
           )
         ),
-        selection = list(selected = which(df$name %in% values$selected))
+        selection = list(selected = which(df$name %in% values$selected)),
+        style = "bootstrap4"
       )
     })
   })
