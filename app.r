@@ -56,8 +56,9 @@ ui <- fluidPage(
       downloadButton("download", "Download")
     ),
     mainPanel(
+      wellPanel(htmlOutput("filter-render")),
       dataTableOutput("dictionary")
-      # , verbatimTextOutput("out")
+      , verbatimTextOutput("out")
     )
   )
 )
@@ -68,6 +69,8 @@ server <- function(input, output, session) {
     filters = list(),
     selected = character()
   )
+
+  filters <- reactive(values$filters |> keep(\(x) as.logical(length(x))))
 
   filter_columns |> walk(function(col) {
     observe({
@@ -80,7 +83,7 @@ server <- function(input, output, session) {
   })
 
   dictionary <- reactive({
-    combined_dictionary |> select(-variables) |> evaluate_filter(values$filters)
+    combined_dictionary |> select(-variables) |> evaluate_filter(filters())
   })
 
   proxy <- dataTableProxy("dictionary")
@@ -141,7 +144,7 @@ server <- function(input, output, session) {
     })
   })
 
-  # output$out <- renderPrint(values$filters)
+  output$out <- renderPrint(values$filters)
 
   output$download <- downloadHandler(
     filename = "variables.csv",
@@ -176,6 +179,14 @@ server <- function(input, output, session) {
       )
     })
   })
+
+  output$`filter-render` <- renderUI(
+    if (length(filters <- filters())) {
+      p(HTML(render_filter(filters)))
+    } else {
+      p("Use the filter panel on the left to customize your search.")
+    }
+  )
 }
 
 
