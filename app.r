@@ -99,7 +99,12 @@ server <- function(input, output, session) {
 
   filter_columns |> walk(function(col) {
     observe({
-      df <- dictionary()
+      filters <- filters()
+      filters[[col]] <- NULL
+
+      df <- combined_dictionary |>
+        select(-variables) |>
+        evaluate_filter(filters)
 
       isolate({
         col_sym <- sym(col)
