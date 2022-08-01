@@ -13,7 +13,7 @@ dictionary_keys <- c("main", "revisit", "screening")
 
 dictionary_keys <- c(
   "Main" = "main",
-  "Revisit - main questionaire" = "revisit",
+  "Revisit - main questionnaire" = "revisit",
   "Revisit - health screening" = "screening"
 )
 
@@ -23,7 +23,7 @@ combined_dictionary <- readRDS(file.path(data_dir, "dictionary.rds")) |>
   mutate_if(is.factor, as.character)
 
 
-filter_columns <- c("questionaire", "section", "subsection")
+filter_columns <- c("questionnaire", "section", "subsection")
 
 
 column_values <- filter_columns |>
@@ -38,7 +38,7 @@ column_values <- filter_columns |>
 
 
 column_value_names <- column_values
-column_value_names$questionaire <- dictionary_keys
+column_value_names$questionnaire <- dictionary_keys
 
 
 ui <- dashboardPage(

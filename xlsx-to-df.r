@@ -69,7 +69,7 @@ dictionaries <- files |>
 
 
 combined_dictionary <- dictionaries |>
-  imap(\(df, i) df |> mutate(questionaire = i, .before = everything())) |>
+  imap(\(df, i) df |> mutate(questionnaire = i, .before = everything())) |>
   (\(dfs) exec(bind_rows, !!!dfs))() |>
   mutate_at(vars(all_of(c("section", "subsection"))), factor)
 
