@@ -1,0 +1,1 @@
+# SPHS dictionary explorer

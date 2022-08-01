@@ -1,3 +1,5 @@
 data/*
 !data/.gitkeep
 .Rproj.user
+.Rhistory
+.DS_Store

@@ -1,0 +1,6 @@
+shinydashboard
+DT
+dplyr
+tidyr
+purrr
+data.table
