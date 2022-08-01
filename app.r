@@ -1,3 +1,4 @@
+library(shinydashboard)
 library(DT)
 library(dplyr)
 library(tidyr)
@@ -40,28 +41,72 @@ column_value_names <- column_values
 column_value_names$questionaire <- dictionary_keys
 
 
-ui <- fluidPage(
-  titlePanel("SPHS dictionary explorer"),
-  sidebarLayout(
-    sidebarPanel(
-      filter_columns |> map(function(col) {
-        selectizeInput(
-          sprintf("%s-select", col),
-          label = tools::toTitleCase(col),
-          choices = column_value_names[[col]],
-          multiple = TRUE,
-          options = list(plugins = list("remove_button"))
+ui <- dashboardPage(
+  dashboardHeader(
+    title = "SPHS dictionary explorer",
+    titleWidth = 280
+  ),
+  dashboardSidebar(disable = TRUE),
+  dashboardBody(
+    fluidRow(
+      column(
+        width = 3,
+        box(
+          width = NULL,
+          solidHeader = TRUE,
+          filter_columns |> map(function(col) {
+            selectizeInput(
+              sprintf("%s-select", col),
+              label = tools::toTitleCase(col),
+              choices = column_value_names[[col]],
+              multiple = TRUE,
+              options = list(plugins = list("remove_button"))
+            )
+          }),
+          downloadButton("download", "Download")
         )
-      }),
-      downloadButton("download", "Download")
-    ),
-    mainPanel(
-      wellPanel(htmlOutput("filter-render")),
-      dataTableOutput("dictionary")
-      , verbatimTextOutput("out")
+      ),
+      column(
+        width = 9,
+        box(
+          width = NULL,
+          background = "purple",
+          htmlOutput("filter-render")
+        ),
+        box(
+          width = NULL,
+          solidHeader = TRUE,
+          dataTableOutput("dictionary")
+        )
+      )
     )
-  )
+  ),
+  skin = "yellow"
 )
+
+
+# ui <- fluidPage(
+#   titlePanel("SPHS dictionary explorer"),
+#   sidebarLayout(
+#     sidebarPanel(
+#       filter_columns |> map(function(col) {
+#         selectizeInput(
+#           sprintf("%s-select", col),
+#           label = tools::toTitleCase(col),
+#           choices = column_value_names[[col]],
+#           multiple = TRUE,
+#           options = list(plugins = list("remove_button"))
+#         )
+#       }),
+#       downloadButton("download", "Download")
+#     ),
+#     mainPanel(
+#       wellPanel(htmlOutput("filter-render")),
+#       dataTableOutput("dictionary")
+#       , verbatimTextOutput("out")
+#     )
+#   )
+# )
 
 
 server <- function(input, output, session) {
@@ -189,7 +234,7 @@ server <- function(input, output, session) {
     if (length(filters <- filters())) {
       p(HTML(render_filter(filters)))
     } else {
-      p("Use the filter panel on the left to customize your search.")
+      p("Use the filter panel to customize your search.")
     }
   )
 }
