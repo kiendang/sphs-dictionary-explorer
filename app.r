@@ -128,7 +128,9 @@ server <- function(input, output, session) {
   })
 
   dictionary <- reactive({
-    combined_dictionary |> select(-variables) |> evaluate_filter(filters())
+    combined_dictionary |>
+      select(-variables) |>
+      evaluate_filter(filters())
   })
 
   proxy <- dataTableProxy("dictionary")
@@ -220,8 +222,9 @@ server <- function(input, output, session) {
         colnames = tools::toTitleCase(names(df)),
         options = list(
           columnDefs = list(
-            list(targets = c(1:(ncol(df))), className = "dt-head-left"),
-            list(targets = 1, visible = FALSE)
+            list(targets = 1L:(ncol(df)), className = "dt-head-left"),
+            list(targets = c(0L, 1L), visible = FALSE),
+            list(targets = tail(1L:(ncol(df)), 2), orderable = FALSE)
           )
         ),
         selection = list(selected = which(df$name %in% values$selected)),
