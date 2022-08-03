@@ -48,6 +48,9 @@ ui <- dashboardPage(
   ),
   dashboardSidebar(disable = TRUE),
   dashboardBody(
+    tags$head(
+      tags$link(rel = "stylesheet", type = "text/css", href = "styles.css")
+    ),
     fluidRow(
       column(
         width = 3,
